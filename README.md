@@ -1,4 +1,4 @@
-# Acquia Search Governor PHP Client
+# Acquia Search Export PHP Client
 
 
 This add-on is intended to export a complete Acquia Search Index using command line tools
