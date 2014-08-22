@@ -1,15 +1,33 @@
+# Acquia Search Governor PHP Client
+
+
 This add-on is intended to export a complete Acquia Search Index using command line tools
 
-To export all Indexes. The command will ask and store your Acquia Network credentials
-./acquia-search-service-export export
+This repository contains a command line tool that can be run via any *nix-like terminal 
+for exporting all or just one Acquia Search index attached to a subscription.
 
-To export 1 specific index
-./acquia-search-service-export export --index ABCD-1234
+## Installation
 
-To export to a specific directory
-./acquia-search-service-export export --path "/tmp/acquia_search_export"
+### Phar (Recommended for CLI use)
 
-Example
+Visit https://github.com/acquia/acquia-search-service-export/releases/latest and download the
+latest stable version. The usage examples below assume this method of installation.
+
+## Usage
+
+### To export all Indexes. The command will ask and store your Acquia Network credentials
+
+    ./acquia-search-service-export export
+
+### To export 1 specific index
+
+    ./acquia-search-service-export export --index ABCD-1234
+
+### To export to a specific directory
+
+    ./acquia-search-service-export export --path "/tmp/acquia_search_export"
+
+## Example
 
     ./acquia-search-service-export export --index ILMV-27747
     [info] Checking if the given subscription has Acquia Search indexes...
