@@ -2,6 +2,10 @@
 
 namespace Acquia\Search\Export\Command;
 
+use FilesystemIterator;
+use Phar;
+use PharData;
+use RecursiveDirectoryIterator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -24,23 +28,38 @@ class ExportCommand extends Command {
         'The full name of the index to be checked. Eg.: ABCD-12345.'
       )
       ->addOption(
+        'tmp',
+        't',
+        InputOption::VALUE_OPTIONAL,
+        'The tmp folder to use.',
+        '/tmp/as_export_tmp'
+      )
+      ->addArgument(
         'path',
-        'p',
         InputOption::VALUE_REQUIRED,
         'the full path to where the export should be saved to. This path should exist.',
-        '/tmp/search_export'
+        '/tmp/as_export'
+      )
+      ->addOption(
+        'compressed',
+        'c',
+        InputOption::VALUE_NONE,
+        'Compresses the file and stores it as ABCD-1234-{timestamp}.tar.gz.'
       )
     ;
 
   }
 
+
+  /**
+   * {@inheritdoc}
+   */
   protected function execute(InputInterface $input, OutputInterface $output) {
 
     $index_given = $input->getOption('index');
-    $path = $input->getOption('path');
-
-
-
+    $path = $input->getArgument('path');
+    $tmp_path = $input->getOption('tmp');
+    $compressed = $input->getOption('compressed');
     $verbosityLevelMap = array(
       'notice' => OutputInterface::VERBOSITY_NORMAL,
       'info' => OutputInterface::VERBOSITY_NORMAL,
@@ -79,24 +98,34 @@ class ExportCommand extends Command {
       $index->get('admin/ping?wt=json')->send()->json();
       $response = $index->get('/admin/luke?wt=json&numTerms=0')->send()->json();
 
+      // Fail if there are no items
       if (!isset($response['index']['numDocs'])) {
         $logger->error('Index ' . $search_core_identifier . 'did not have any indexed items');
-        exit();
-      }
-
-      if (!file_exists($path)) {
-        $logger->error($path . ' does not exists. Please create the path before exporting solr documents.');
         exit(1);
       }
 
-      // Make the directory
+      // Fail if the directory does not exists
+      if (!file_exists($path) || !file_exists($tmp_path)) {
+        $logger->error($path . ' or ' . $tmp_path . ' does not exists. Please create the path before exporting solr documents.');
+        exit(1);
+      }
+
+      // Make the directories
       if (!file_exists($path .'/' . $search_core_identifier)) {
         mkdir($path .'/' . $search_core_identifier, 0700);
+      }
+      if (!file_exists($tmp_path .'/' . $search_core_identifier)) {
+        mkdir($tmp_path .'/' . $search_core_identifier, 0700);
+      }
+
+      // Clear the tmp directory
+      $directory_iterator = new RecursiveDirectoryIterator($tmp_path .'/' . $search_core_identifier, FilesystemIterator::SKIP_DOTS);
+      foreach ($directory_iterator as $file) {
+        unlink($file);
       }
 
       // Get the number of documents in this index
       $numDocuments = $response['index']['numDocs'];
-
       $processed_count = 0;
       $offset = 0;
 
@@ -110,14 +139,40 @@ class ExportCommand extends Command {
         $processed_count += count($documents);
         $offset += count($documents);
         $logger->info('Found ' . count($documents) . ' documents. Exporting...');
+
         // Export all documents to an xml file
         foreach ($documents as $document) {
           $filename = $this->sanitize_file_name($document['id']) . '.xml';
           $xmlDocument = $this->documentToXml($document);
-          file_put_contents($path . '/' . $search_core_identifier . '/' . $filename, $xmlDocument) || die("can't open file");
+          file_put_contents($tmp_path . '/' . $search_core_identifier . '/' . $filename, $xmlDocument);
         }
         $logger->info('Exported ' . count($documents) . ' documents. Checking for more documents');
+        break;
       }
+
+      // Copy over all files to the respective directory or compress them
+      print_r($compressed);
+      if ($compressed) {
+        $filename = $search_core_identifier . '-' . time() . '.tar';
+        $phar = new PharData($tmp_path . '/' . $search_core_identifier . '/' . $filename);
+        $phar->buildFromDirectory($tmp_path . '/' . $search_core_identifier);
+        $phar->compress(Phar::GZ);
+        // both .tar and .tar.gz files will exist. Delete the .tar.
+        // Also make sure the file is closed.
+        unset($phar);
+        unlink($tmp_path . '/' . $search_core_identifier . '/' . $filename);
+
+        // Only move the tar.gz file to the permanent directory
+        rename($tmp_path . '/' . $search_core_identifier . '/' . $filename . '.gz', $path . '/' . $search_core_identifier . '/' . $filename . '.gz');
+      }
+      else {
+        // Copy all files
+        $directory_iterator = new RecursiveDirectoryIterator($tmp_path .'/' . $search_core_identifier, FilesystemIterator::SKIP_DOTS);
+        foreach ($directory_iterator as $filename) {
+          rename($tmp_path . '/' . $search_core_identifier . '/' . $filename, $path . '/' . $search_core_identifier . '/' . $filename);
+        }
+      }
+
       $logger->info('Exported ' . $processed_count . ' documents. Finished export for ' . $search_core_identifier . '.');
 
     }
