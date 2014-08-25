@@ -108,6 +108,7 @@ class ExportCommand extends Command {
       if (!file_exists($path)) {
         try {
           mkdir($path);
+          $logger->info('Created the ' . $path . ' directory');
         }
         catch (\Exception $e) {
           $logger->error($e->getMessage());
@@ -118,6 +119,7 @@ class ExportCommand extends Command {
       if (!file_exists($tmp_path)) {
         try {
           mkdir($tmp_path);
+          $logger->info('Created the ' . $path . ' directory');
         }
         catch (\Exception $e) {
           $logger->error($e->getMessage());
@@ -128,12 +130,15 @@ class ExportCommand extends Command {
       // Make the directories
       if (!file_exists($path .'/' . $search_core_identifier)) {
         mkdir($path .'/' . $search_core_identifier, 0700);
+        $logger->info('Created the ' . $path .'/' . $search_core_identifier . ' directory');
       }
       if (!file_exists($tmp_path .'/' . $search_core_identifier)) {
         mkdir($tmp_path .'/' . $search_core_identifier, 0700);
+        $logger->info('Created the ' . $tmp_path .'/' . $search_core_identifier . ' directory');
       }
 
       // Clear the tmp directory
+      $logger->info('Clearing the ' . $tmp_path .'/' . $search_core_identifier . ' directory');
       $directory_iterator = new RecursiveDirectoryIterator($tmp_path .'/' . $search_core_identifier, FilesystemIterator::SKIP_DOTS);
       foreach ($directory_iterator as $file) {
         unlink($file);
@@ -177,16 +182,19 @@ class ExportCommand extends Command {
 
         // Only move the tar.gz file to the permanent directory
         rename($tmp_path . '/' . $search_core_identifier . '/' . $filename . '.gz', $path . '/' . $search_core_identifier . '/' . $filename . '.gz');
+        $logger->info('Compressed all documents and stored as ' . $path . '/' . $search_core_identifier . '/' . $filename . '.gz');
       }
       else {
         // Copy all files
         $directory_iterator = new RecursiveDirectoryIterator($tmp_path .'/' . $search_core_identifier, FilesystemIterator::SKIP_DOTS);
         foreach ($directory_iterator as $filename) {
-          rename($tmp_path . '/' . $search_core_identifier . '/' . $filename, $path . '/' . $search_core_identifier . '/' . $filename);
+          $pathinfo = pathinfo($filename);
+          $filename_without_path = $pathinfo['filename'];
+          rename($filename, $path . '/' . $search_core_identifier . '/' . $filename_without_path);
         }
       }
 
-      $logger->info('Exported ' . $processed_count . ' documents. Finished export for ' . $search_core_identifier . '.');
+      $logger->info('Exported ' . $processed_count . ' documents. Finished export for ' . $search_core_identifier . '. Exports can be found in ' . $path . '/' . $search_core_identifier);
 
     }
 
