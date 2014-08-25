@@ -147,7 +147,6 @@ class ExportCommand extends Command {
           file_put_contents($tmp_path . '/' . $search_core_identifier . '/' . $filename, $xmlDocument);
         }
         $logger->info('Exported ' . count($documents) . ' documents. Checking for more documents');
-        break;
       }
 
       // Copy over all files to the respective directory or compress them
