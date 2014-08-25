@@ -105,9 +105,24 @@ class ExportCommand extends Command {
       }
 
       // Fail if the directory does not exists
-      if (!file_exists($path) || !file_exists($tmp_path)) {
-        $logger->error($path . ' or ' . $tmp_path . ' does not exists. Please create the path before exporting solr documents.');
-        exit(1);
+      if (!file_exists($path)) {
+        try {
+          mkdir($path);
+        }
+        catch (\Exception $e) {
+          $logger->error($e->getMessage());
+          exit(1);
+        }
+      }
+      // Fail if the directory does not exists
+      if (!file_exists($tmp_path)) {
+        try {
+          mkdir($tmp_path);
+        }
+        catch (\Exception $e) {
+          $logger->error($e->getMessage());
+          exit(1);
+        }
       }
 
       // Make the directories
@@ -150,7 +165,6 @@ class ExportCommand extends Command {
       }
 
       // Copy over all files to the respective directory or compress them
-      print_r($compressed);
       if ($compressed) {
         $filename = $search_core_identifier . '-' . time() . '.tar';
         $phar = new PharData($tmp_path . '/' . $search_core_identifier . '/' . $filename);
