@@ -30,7 +30,7 @@ class ExportCommand extends Command {
       ->addOption(
         'tmp',
         't',
-        InputOption::VALUE_OPTIONAL,
+        InputOption::VALUE_REQUIRED,
         'The tmp folder to use.',
         '/tmp/as_export_tmp'
       )
